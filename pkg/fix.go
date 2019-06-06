@@ -4,16 +4,25 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/olekukonko/tablewriter"
 	"log"
 	"math"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var EARTH_RADIUS_IN_METERS = 6372797.560856
-var DIST_TOLERANCE = 0.05
+var DIST_TOLERANCE_IN_METERS = 30.0
+var NUM_LAP_COOLDOWN_MEASURES = 100
+
+type Lap struct {
+	timeSeconds              float64
+	measureStartIndex        int
+	measureEndIndexExclusive int
+}
 
 type TrackInformation struct {
 	startLatLng []float64
@@ -21,6 +30,7 @@ type TrackInformation struct {
 
 type GPSMeasurement struct {
 	latLng       []float64
+	relativeTime float64
 	utcTimestamp float64
 }
 
@@ -30,12 +40,57 @@ func Fix(inputFile string) error {
 		return err
 	}
 
-	for index, measure := range measures {
-		fmt.Printf("i=%d time=%f dist=%f\n", index,
-			measure.utcTimestamp, haversineDistance(trackInfo.startLatLng, measure.latLng))
-	}
+	laps := extractLaps(measures, trackInfo)
+	prettyPrintLaps(laps)
 
 	return nil
+}
+
+func prettyPrintLaps(laps []Lap) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Lap Number", "Time (s)", "Measure Range"})
+
+	for i, v := range laps {
+		duration, _ := time.ParseDuration(fmt.Sprintf("%fs", v.timeSeconds))
+
+		lapFormat := fmt.Sprintf("%d", i+1)
+		if i == 0 {
+			lapFormat = fmt.Sprintf("%d (Outlap)", i+1)
+		} else if i == len(laps)-1 {
+			lapFormat = fmt.Sprintf("%d (Inlap)", i+1)
+		}
+
+		table.Append([]string{
+			lapFormat,
+			duration.String(),
+			fmt.Sprintf("%d-%d", v.measureStartIndex, v.measureEndIndexExclusive),
+		})
+	}
+	table.Render()
+}
+
+func extractLaps(measures []GPSMeasurement, trackInfo *TrackInformation) []Lap {
+	var laps []Lap
+	currentLap := Lap{measureStartIndex: 0}
+	for i := 0; i < len(measures); i++ {
+		// fmt.Printf("i=%d reltime=%f timeSeconds=%f dist=%f\n", index, measure.relativeTime, measure.utcTimestamp, dist)
+		measure := measures[i]
+		dist := haversineDistance(trackInfo.startLatLng, measure.latLng)
+		// simple thresholding algorithm with cooldown
+		if dist < DIST_TOLERANCE_IN_METERS && (i-currentLap.measureStartIndex) > NUM_LAP_COOLDOWN_MEASURES {
+			currentLap.measureEndIndexExclusive = i + 1
+			currentLap.timeSeconds = measure.relativeTime - measures[currentLap.measureStartIndex].relativeTime
+			laps = append(laps, currentLap)
+			currentLap = Lap{measureStartIndex: currentLap.measureEndIndexExclusive}
+		}
+	}
+
+	// finish the outlap
+	currentLap.measureEndIndexExclusive = len(measures)
+	currentLap.timeSeconds = measures[len(measures)-1].relativeTime - measures[currentLap.measureStartIndex].relativeTime
+	laps = append(laps, currentLap)
+
+	return laps
 }
 
 func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, error) {
@@ -73,6 +128,7 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 			}
 
 			measures = append(measures, GPSMeasurement{
+				relativeTime: mustParseFloat64(split[0]),
 				utcTimestamp: mustParseFloat64(split[1]),
 				latLng:       []float64{mustParseFloat64(split[7]), mustParseFloat64(split[8])},
 			})
