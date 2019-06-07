@@ -32,6 +32,7 @@ type GPSMeasurement struct {
 	latLng       []float64
 	relativeTime float64
 	utcTimestamp float64
+	accelXYZ	 []float64
 }
 
 func Fix(inputFile string) error {
@@ -131,6 +132,7 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 				relativeTime: mustParseFloat64(split[0]),
 				utcTimestamp: mustParseFloat64(split[1]),
 				latLng:       []float64{mustParseFloat64(split[7]), mustParseFloat64(split[8])},
+				accelXYZ:     []float64{mustParseFloat64(split[14]), mustParseFloat64(split[15]), mustParseFloat64(split[16])},
 			})
 
 		}

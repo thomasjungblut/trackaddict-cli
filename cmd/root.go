@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/thomasjungblut/fix-trackaddict/pkg"
+	"github.com/thomasjungblut/trackaddict-cli/pkg"
 	"os"
 )
 
@@ -12,7 +12,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "fix-trackaddict",
+	Use:   "trackaddict-cli",
 	Short: "This commandline tool will try to fix your laps from noisy GPS and print the laptimes.",
 }
 
@@ -30,7 +30,7 @@ var createCmd = &cobra.Command{
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version number of fix-trackaddict",
+	Short: "Print the version number of trackaddict-cli",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("0.0.1")
 	},

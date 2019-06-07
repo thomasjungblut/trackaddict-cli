@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/thomasjungblut/fix-trackaddict/cmd"
+	"github.com/thomasjungblut/trackaddict-cli/cmd"
 )
 
 func main() {
