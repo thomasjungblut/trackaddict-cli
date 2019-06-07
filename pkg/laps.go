@@ -7,24 +7,43 @@ import (
 	"time"
 )
 
-func PrintLaps(inputFile string) error {
-	trackInfo, measures, err := readTrackMeasures(inputFile)
-	if err != nil {
-		return err
-	}
+var DistToleranceInMeters = 30.0
+var NumLapCooldownMeasures = 100
 
-	laps := extractLaps(measures, trackInfo)
-	prettyPrintLaps(laps)
-
-	return nil
+func MeasuresForLap(lap Lap, measures []GPSMeasurement) []GPSMeasurement {
+	return measures[lap.measureStartIndex:lap.measureEndIndexExclusive]
 }
 
-func prettyPrintLaps(laps []Lap) {
+func extractLaps(measures []GPSMeasurement, trackInfo *TrackInformation) []Lap {
+	var laps []Lap
+	currentLap := Lap{measureStartIndex: 0}
+	for i := 0; i < len(measures); i++ {
+		// fmt.Printf("i=%d reltime=%f timeSeconds=%f dist=%f\n", index, measure.relativeTime, measure.utcTimestamp, dist)
+		measure := measures[i]
+		dist := haversineDistance(trackInfo.startLatLng, measure.latLng)
+		// simple thresholding algorithm with cooldown
+		if dist < DistToleranceInMeters && (i-currentLap.measureStartIndex) > NumLapCooldownMeasures {
+			currentLap.measureEndIndexExclusive = i + 1
+			currentLap.timeSeconds = measure.relativeTime - measures[currentLap.measureStartIndex].relativeTime
+			laps = append(laps, currentLap)
+			currentLap = Lap{measureStartIndex: currentLap.measureEndIndexExclusive}
+		}
+	}
+
+	// finish the outlap
+	currentLap.measureEndIndexExclusive = len(measures)
+	currentLap.timeSeconds = measures[len(measures)-1].relativeTime - measures[currentLap.measureStartIndex].relativeTime
+	laps = append(laps, currentLap)
+
+	return laps
+}
+
+func PrettyPrintLaps(laps []Lap) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Lap Number", "Time (s)", "Measure Range"})
 
 	for i, v := range laps {
-		duration, _ := time.ParseDuration(fmt.Sprintf("%fs", v.timeSeconds))
+		duration := getLapDuration(v)
 
 		lapFormat := fmt.Sprintf("%d", i+1)
 		if i == 0 {
@@ -40,4 +59,9 @@ func prettyPrintLaps(laps []Lap) {
 		})
 	}
 	table.Render()
+}
+
+func getLapDuration(v Lap) time.Duration {
+	duration, _ := time.ParseDuration(fmt.Sprintf("%fs", v.timeSeconds))
+	return duration
 }

@@ -5,35 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func extractLaps(measures []GPSMeasurement, trackInfo *TrackInformation) []Lap {
-	var laps []Lap
-	currentLap := Lap{measureStartIndex: 0}
-	for i := 0; i < len(measures); i++ {
-		// fmt.Printf("i=%d reltime=%f timeSeconds=%f dist=%f\n", index, measure.relativeTime, measure.utcTimestamp, dist)
-		measure := measures[i]
-		dist := haversineDistance(trackInfo.startLatLng, measure.latLng)
-		// simple thresholding algorithm with cooldown
-		if dist < DIST_TOLERANCE_IN_METERS && (i-currentLap.measureStartIndex) > NUM_LAP_COOLDOWN_MEASURES {
-			currentLap.measureEndIndexExclusive = i + 1
-			currentLap.timeSeconds = measure.relativeTime - measures[currentLap.measureStartIndex].relativeTime
-			laps = append(laps, currentLap)
-			currentLap = Lap{measureStartIndex: currentLap.measureEndIndexExclusive}
-		}
+func ReadData(inputFile string) (*TrackInformation, []GPSMeasurement, []Lap, error) {
+	trackInfo, measures, err := readTrackMeasures(inputFile)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	// finish the outlap
-	currentLap.measureEndIndexExclusive = len(measures)
-	currentLap.timeSeconds = measures[len(measures)-1].relativeTime - measures[currentLap.measureStartIndex].relativeTime
-	laps = append(laps, currentLap)
-
-	return laps
+	laps := extractLaps(measures, trackInfo)
+	return trackInfo, measures, laps, nil
 }
 
 func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, error) {
@@ -86,20 +71,6 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 	}
 
 	return &trackInfo, measures, nil
-}
-
-func haversineDistance(aInit []float64, bInit []float64) float64 {
-	a := make([]float64, len(aInit))
-	copy(a, aInit)
-	b := make([]float64, len(bInit))
-	copy(b, bInit)
-
-	a[0] = a[0] / 180.0 * math.Pi
-	a[1] = a[1] / 180.0 * math.Pi
-	b[0] = b[0] / 180.0 * math.Pi
-	b[1] = b[1] / 180.0 * math.Pi
-
-	return math.Acos(math.Sin(a[0])*math.Sin(b[0])+math.Cos(a[0])*math.Cos(b[0])*math.Cos(a[1]-b[1])) * EARTH_RADIUS_IN_METERS
 }
 
 func mustParseFloat64(s string) float64 {

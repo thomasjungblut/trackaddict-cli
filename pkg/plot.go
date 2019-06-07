@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"fmt"
 	sm "github.com/flopp/go-staticmaps"
 	"github.com/fogleman/gg"
 	"github.com/golang/geo/s2"
@@ -8,33 +9,35 @@ import (
 	"math/rand"
 )
 
-func Plot(inputFile string, outputFile string) error {
-	trackInfo, measures, err := readTrackMeasures(inputFile)
-	if err != nil {
-		return err
-	}
-
-	laps := extractLaps(measures, trackInfo)
-
-	return plot(measures, laps, outputFile)
-}
-
-func plot(measures []GPSMeasurement, laps []Lap, outputFile string) error {
-	println("Plotting your map...")
+func Plot(measures []GPSMeasurement, laps []Lap, outputFile string, imageWidth int, imageHeight int, fastestOnly bool) error {
+	fmt.Printf("Plotting your map in [Width/Height] [%d, %d]\n", imageWidth, imageHeight)
 	ctx := sm.NewContext()
-	ctx.SetSize(2000, 2000)
+	ctx.SetSize(imageWidth, imageHeight)
 
-		for lapNum := 0; lapNum < len(laps); lapNum++ {
-			lapSet := measures[laps[lapNum].measureStartIndex : laps[lapNum].measureEndIndexExclusive]
-			positions := make([]s2.LatLng, len(lapSet))
-
-			for i := 0; i < len(lapSet); i++ {
-				positions[i] = s2.LatLngFromDegrees(lapSet[i].latLng[0], lapSet[i].latLng[1])
+	if fastestOnly {
+		fastestIndex := 0
+		min := laps[fastestIndex].timeSeconds
+		for i, lap := range laps {
+			if lap.timeSeconds < min {
+				fastestIndex = i
+				min = lap.timeSeconds
 			}
-			lapPath := sm.NewPath(positions, color.RGBA{uint8(rand.Intn(255)), uint8(rand.Intn(255)), uint8(rand.Intn(255)), 0xff}, 2.0)
-			ctx.AddPath(lapPath)
+		}
+		laps = []Lap{laps[fastestIndex]}
+		fmt.Printf("Plotting the fastest Lap [%s]\n", getLapDuration(laps[0]).String())
 	}
 
+	for lapNum := 0; lapNum < len(laps); lapNum++ {
+		lapSet := MeasuresForLap(laps[lapNum], measures)
+		positions := make([]s2.LatLng, len(lapSet))
+
+		for i := 0; i < len(lapSet); i++ {
+			// fmt.Printf("[%f, %f]\n", lapSet[i].latLng[0], lapSet[i].latLng[1])
+			positions[i] = s2.LatLngFromDegrees(lapSet[i].latLng[0], lapSet[i].latLng[1])
+		}
+		lapPath := sm.NewPath(positions, color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: 0xff}, 2.0)
+		ctx.AddPath(lapPath)
+	}
 
 	img, err := ctx.Render()
 	if err != nil {
@@ -45,6 +48,6 @@ func plot(measures []GPSMeasurement, laps []Lap, outputFile string) error {
 		return err
 	}
 
-	println("Map plotted to: " + outputFile)
+	fmt.Printf("Map saved in %s\n", outputFile)
 	return nil
 }

@@ -8,8 +8,11 @@ import (
 )
 
 var (
-	InputFile  string
-	OutputFile string
+	InputFile          string
+	OutputFile         string
+	PlotImageWidth     int
+	PlotImageHeight    int
+	PlotFastestLapOnly bool
 )
 
 var rootCmd = &cobra.Command{
@@ -21,11 +24,12 @@ var createCmd = &cobra.Command{
 	Use:   "laps",
 	Short: "Prints your lap times",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := pkg.PrintLaps(InputFile)
+		_, _, laps, err := pkg.ReadData(InputFile)
 		if err != nil {
 			fmt.Printf("%s", err)
 			os.Exit(1)
 		}
+		pkg.PrettyPrintLaps(laps)
 	},
 }
 
@@ -33,7 +37,13 @@ var plotCmd = &cobra.Command{
 	Use:   "plot",
 	Short: "Plots a small map of your GPS coordinates",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := pkg.Plot(InputFile, OutputFile)
+		_, measures, laps, err := pkg.ReadData(InputFile)
+		if err != nil {
+			fmt.Printf("%s", err)
+			os.Exit(1)
+		}
+
+		err = pkg.Plot(measures, laps, OutputFile, PlotImageWidth, PlotImageHeight, PlotFastestLapOnly)
 		if err != nil {
 			fmt.Printf("%s", err)
 			os.Exit(1)
@@ -51,12 +61,16 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
-	createCmd.MarkFlagRequired("inputFile")
+	_ = createCmd.MarkFlagRequired("inputFile")
 
 	plotCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
-	plotCmd.MarkFlagRequired("inputFile")
+	_ = plotCmd.MarkFlagRequired("inputFile")
 	plotCmd.Flags().StringVarP(&OutputFile, "outputFile", "o", "", "Output File (with .png)")
-	plotCmd.MarkFlagRequired("outputFile")
+	_ = plotCmd.MarkFlagRequired("outputFile")
+
+	plotCmd.Flags().IntVarP(&PlotImageWidth, "width", "", 2000, "width of the output image, 2000px default")
+	plotCmd.Flags().IntVarP(&PlotImageHeight, "height", "", 2000, "height of the output image, 2000px default")
+	plotCmd.Flags().BoolVarP(&PlotFastestLapOnly, "fastest-lap-only", "", false, "if set, it plots only the fastest lap")
 
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(plotCmd)
