@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	sm "github.com/flopp/go-staticmaps"
+	"github.com/fogleman/gg"
+	"github.com/golang/geo/s2"
 	"github.com/olekukonko/tablewriter"
+	"image/color"
 	"log"
 	"math"
 	"os"
@@ -35,7 +39,7 @@ type GPSMeasurement struct {
 	accelXYZ	 []float64
 }
 
-func Fix(inputFile string) error {
+func Fix(inputFile string, plotFlag bool) error {
 	trackInfo, measures, err := readTrackMeasures(inputFile)
 	if err != nil {
 		return err
@@ -43,6 +47,9 @@ func Fix(inputFile string) error {
 
 	laps := extractLaps(measures, trackInfo)
 	prettyPrintLaps(laps)
+	if plotFlag {
+		plot(measures)
+	}
 
 	return nil
 }
@@ -166,4 +173,27 @@ func mustParseFloat64(s string) float64 {
 		log.Fatalf("can't parse float: %s", s)
 	}
 	return f
+}
+
+func plot(measures []GPSMeasurement) {
+	println("Plotting your map...")
+	ctx := sm.NewContext()
+	ctx.SetSize(2000,2000)
+
+	positions := make([]s2.LatLng, len(measures))
+	for i:= 0; i < len(measures); i++ {
+		positions[i] = s2.LatLngFromDegrees(measures[i].latLng[0], measures[i].latLng[1])
+	}
+	path := sm.NewPath(positions, color.RGBA{0xff, 0, 0, 0xff}, 2.0)
+	ctx.AddPath(path)
+	img, err := ctx.Render()
+	if err != nil {
+		panic(err)
+	}
+
+	if err := gg.SavePNG("output.png", img); err != nil {
+		panic(err)
+	}
+
+	println("Map plotted!")
 }
