@@ -9,19 +9,31 @@ import (
 
 var (
 	InputFile string
-	PlotFlag bool
+	OutputFile string
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "trackaddict-cli",
-	Short: "This commandline tool will try to fix your laps from noisy GPS and print the laptimes.",
+	Short: "This commandline tool will try to fix your laps from noisy GPS and print the lap times.",
 }
 
 var createCmd = &cobra.Command{
-	Use:   "fix",
-	Short: "fixes the given file",
+	Use:   "laps",
+	Short: "Prints your lap times",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := pkg.Fix(InputFile, PlotFlag)
+		err := pkg.PrintLaps(InputFile)
+		if err != nil {
+			fmt.Printf("%s", err)
+			os.Exit(1)
+		}
+	},
+}
+
+var plotCmd = &cobra.Command{
+	Use:	"plot",
+	Short: 	"Plots a small map of your GPS coordinates",
+	Run:	func(cmd *cobra.Command, args[]string) {
+		err := pkg.Plot(InputFile, OutputFile)
 		if err != nil {
 			fmt.Printf("%s", err)
 			os.Exit(1)
@@ -38,11 +50,16 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&InputFile, "inputFile", "f", "", "Input File (required)")
+	createCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
 	createCmd.MarkFlagRequired("inputFile")
-	createCmd.Flags().BoolVarP(&PlotFlag, "plot", "p", false, "Plot your track")
+
+	plotCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
+	plotCmd.MarkFlagRequired("inputFile")
+	plotCmd.Flags().StringVarP(&OutputFile, "outputFile", "o", "", "Output File (with .png)")
+	plotCmd.MarkFlagRequired("outputFile")
 
 	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(plotCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 

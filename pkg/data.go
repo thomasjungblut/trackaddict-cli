@@ -4,78 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	sm "github.com/flopp/go-staticmaps"
-	"github.com/fogleman/gg"
-	"github.com/golang/geo/s2"
-	"github.com/olekukonko/tablewriter"
-	"image/color"
 	"log"
 	"math"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
-
-var EARTH_RADIUS_IN_METERS = 6372797.560856
-var DIST_TOLERANCE_IN_METERS = 30.0
-var NUM_LAP_COOLDOWN_MEASURES = 100
-
-type Lap struct {
-	timeSeconds              float64
-	measureStartIndex        int
-	measureEndIndexExclusive int
-}
-
-type TrackInformation struct {
-	startLatLng []float64
-}
-
-type GPSMeasurement struct {
-	latLng       []float64
-	relativeTime float64
-	utcTimestamp float64
-	accelXYZ	 []float64
-}
-
-func Fix(inputFile string, plotFlag bool) error {
-	trackInfo, measures, err := readTrackMeasures(inputFile)
-	if err != nil {
-		return err
-	}
-
-	laps := extractLaps(measures, trackInfo)
-	prettyPrintLaps(laps)
-	if plotFlag {
-		plot(measures)
-	}
-
-	return nil
-}
-
-func prettyPrintLaps(laps []Lap) {
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Lap Number", "Time (s)", "Measure Range"})
-
-	for i, v := range laps {
-		duration, _ := time.ParseDuration(fmt.Sprintf("%fs", v.timeSeconds))
-
-		lapFormat := fmt.Sprintf("%d", i+1)
-		if i == 0 {
-			lapFormat = fmt.Sprintf("%d (Outlap)", i+1)
-		} else if i == len(laps)-1 {
-			lapFormat = fmt.Sprintf("%d (Inlap)", i+1)
-		}
-
-		table.Append([]string{
-			lapFormat,
-			duration.String(),
-			fmt.Sprintf("%d-%d", v.measureStartIndex, v.measureEndIndexExclusive),
-		})
-	}
-	table.Render()
-}
 
 func extractLaps(measures []GPSMeasurement, trackInfo *TrackInformation) []Lap {
 	var laps []Lap
@@ -173,27 +108,4 @@ func mustParseFloat64(s string) float64 {
 		log.Fatalf("can't parse float: %s", s)
 	}
 	return f
-}
-
-func plot(measures []GPSMeasurement) {
-	println("Plotting your map...")
-	ctx := sm.NewContext()
-	ctx.SetSize(2000,2000)
-
-	positions := make([]s2.LatLng, len(measures))
-	for i:= 0; i < len(measures); i++ {
-		positions[i] = s2.LatLngFromDegrees(measures[i].latLng[0], measures[i].latLng[1])
-	}
-	path := sm.NewPath(positions, color.RGBA{0xff, 0, 0, 0xff}, 2.0)
-	ctx.AddPath(path)
-	img, err := ctx.Render()
-	if err != nil {
-		panic(err)
-	}
-
-	if err := gg.SavePNG("output.png", img); err != nil {
-		panic(err)
-	}
-
-	println("Map plotted!")
 }
