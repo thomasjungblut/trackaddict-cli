@@ -1,4 +1,4 @@
-module github.com/thomasjungblut/fix-trackaddict
+module github.com/thomasjungblut/trackaddict-cli
 
 require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
