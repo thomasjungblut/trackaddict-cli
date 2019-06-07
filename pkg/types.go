@@ -18,5 +18,5 @@ type GPSMeasurement struct {
 	latLng       []float64
 	relativeTime float64
 	utcTimestamp float64
-	accelXYZ	 []float64
+	accelXYZ     []float64
 }

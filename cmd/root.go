@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	InputFile string
+	InputFile  string
 	OutputFile string
 )
 
@@ -30,9 +30,9 @@ var createCmd = &cobra.Command{
 }
 
 var plotCmd = &cobra.Command{
-	Use:	"plot",
-	Short: 	"Plots a small map of your GPS coordinates",
-	Run:	func(cmd *cobra.Command, args[]string) {
+	Use:   "plot",
+	Short: "Plots a small map of your GPS coordinates",
+	Run: func(cmd *cobra.Command, args []string) {
 		err := pkg.Plot(InputFile, OutputFile)
 		if err != nil {
 			fmt.Printf("%s", err)

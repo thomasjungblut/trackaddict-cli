@@ -17,13 +17,13 @@ func Plot(inputFile string, outputFile string) error {
 	return nil
 }
 
-func plot(measures []GPSMeasurement, outputFile string) error{
+func plot(measures []GPSMeasurement, outputFile string) error {
 	println("Plotting your map...")
 	ctx := sm.NewContext()
-	ctx.SetSize(2000,2000)
+	ctx.SetSize(2000, 2000)
 
 	positions := make([]s2.LatLng, len(measures))
-	for i:= 0; i < len(measures); i++ {
+	for i := 0; i < len(measures); i++ {
 		positions[i] = s2.LatLngFromDegrees(measures[i].latLng[0], measures[i].latLng[1])
 	}
 	path := sm.NewPath(positions, color.RGBA{0xff, 0, 0, 0xff}, 2.0)
