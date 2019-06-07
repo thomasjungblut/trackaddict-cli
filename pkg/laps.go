@@ -18,9 +18,9 @@ func extractLaps(measures []GPSMeasurement, trackInfo *TrackInformation) []Lap {
 	var laps []Lap
 	currentLap := Lap{measureStartIndex: 0}
 	for i := 0; i < len(measures); i++ {
-		// fmt.Printf("i=%d reltime=%f timeSeconds=%f dist=%f\n", index, measure.relativeTime, measure.utcTimestamp, dist)
 		measure := measures[i]
 		dist := haversineDistance(trackInfo.startLatLng, measure.latLng)
+		fmt.Printf("%f\t%f\n", measure.relativeTime, dist)
 		// simple thresholding algorithm with cooldown
 		if dist < DistToleranceInMeters && (i-currentLap.measureStartIndex) > NumLapCooldownMeasures {
 			currentLap.measureEndIndexExclusive = i + 1
