@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-var DistToleranceInMeters = 30.0
-var NumLapCooldownMeasures = 100
+const DistToleranceInMeters = 30.0
+const NumLapCooldownMeasures = 100
 
 func MeasuresForLap(lap Lap, measures []GPSMeasurement) []GPSMeasurement {
 	return measures[lap.measureStartIndex:lap.measureEndIndexExclusive]

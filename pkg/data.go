@@ -11,14 +11,14 @@ import (
 	"strings"
 )
 
-func ReadData(inputFile string) (*TrackInformation, []GPSMeasurement, []Lap, error) {
+func ReadData(inputFile string) (*TrackData, error) {
 	trackInfo, measures, err := readTrackMeasures(inputFile)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	laps := extractLaps(measures, trackInfo)
-	return trackInfo, measures, laps, nil
+	return &TrackData{TrackInformation: trackInfo, GPSMeasurement: measures, Laps: laps}, nil
 }
 
 func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, error) {
@@ -56,10 +56,14 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 			}
 
 			measures = append(measures, GPSMeasurement{
-				relativeTime: mustParseFloat64(split[0]),
-				utcTimestamp: mustParseFloat64(split[1]),
-				latLng:       []float64{mustParseFloat64(split[7]), mustParseFloat64(split[8])},
-				accelXYZ:     []float64{mustParseFloat64(split[14]), mustParseFloat64(split[15]), mustParseFloat64(split[16])},
+				relativeTime:       mustParseFloat64(split[0]),
+				utcTimestamp:       mustParseFloat64(split[1]),
+				latLng:             []float64{mustParseFloat64(split[7]), mustParseFloat64(split[8])},
+				altitudeMeters:     mustParseFloat64(split[9]),
+				speedKph:           mustParseFloat64(split[11]),
+				headingDegrees:     mustParseFloat64(split[12]),
+				accuracyMeter:      mustParseFloat64(split[13]),
+				accelerationVector: []float64{mustParseFloat64(split[14]), mustParseFloat64(split[15]), mustParseFloat64(split[16])},
 			})
 
 		}
@@ -69,6 +73,9 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 	if err := scanner.Err(); err != nil {
 		return nil, nil, err
 	}
+
+	// TODO flag
+	measures = PredictKalmanFilteredMeasures(measures)
 
 	return &trackInfo, measures, nil
 }
