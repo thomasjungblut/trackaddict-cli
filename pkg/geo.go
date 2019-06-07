@@ -91,6 +91,7 @@ func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasuremen
 	var output []GPSMeasurement
 	for i := 1; i < len(measurement); i++ {
 		data := measurement[i]
+		time := data.relativeTime - measurement[i-1].relativeTime
 		speed := data.speedKph / 3.6
 		xVel := speed * math.Cos(data.headingDegrees)
 		yVel := speed * math.Sin(data.headingDegrees)
@@ -98,8 +99,8 @@ func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasuremen
 		latFilter.Update(latToMeter(data.latLng[0]), xVel, nil, 0)
 		lngFilter.Update(lngToMeter(data.latLng[1]), yVel, nil, 0)
 
-		latFilter.Predict(data.accelerationVector[0], data.relativeTime)
-		lngFilter.Predict(data.accelerationVector[1], data.relativeTime)
+		latFilter.Predict(data.accelerationVector[0], time)
+		lngFilter.Predict(data.accelerationVector[1], time)
 
 		point := metersToGeoPoint(latFilter.GetPredictedPosition(), lngFilter.GetPredictedPosition())
 		fmt.Printf("[%f] vs. [%f]\n", data.latLng, point)
