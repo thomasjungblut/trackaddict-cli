@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -85,24 +84,25 @@ func haversineDistance(aInit []float64, bInit []float64) float64 {
 func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasurement {
 	init := measurement[0]
 
-	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]), 1, 1, init.utcTimestamp)
-	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]), 1, 1, init.utcTimestamp)
+	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]), 10, 0.3, init.relativeTime)
+	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]), 10, 0.3, init.relativeTime)
 
 	var output []GPSMeasurement
 	for i := 1; i < len(measurement); i++ {
 		data := measurement[i]
+		time := data.relativeTime - measurement[i-1].relativeTime
 		speed := data.speedKph / 3.6
 		xVel := speed * math.Cos(data.headingDegrees)
 		yVel := speed * math.Sin(data.headingDegrees)
 
-		latFilter.Update(latToMeter(data.latLng[0]), xVel, nil, 0)
-		lngFilter.Update(lngToMeter(data.latLng[1]), yVel, nil, 0)
+		latFilter.Update(latToMeter(data.latLng[0]), xVel, &data.accuracyMeter, 0)
+		lngFilter.Update(lngToMeter(data.latLng[1]), yVel, &data.accuracyMeter, 0)
 
-		latFilter.Predict(data.accelerationVector[0], data.utcTimestamp)
-		lngFilter.Predict(data.accelerationVector[1], data.utcTimestamp)
+		latFilter.Predict(data.accelerationVector[0], time)
+		lngFilter.Predict(data.accelerationVector[1], time)
 
 		point := metersToGeoPoint(latFilter.GetPredictedPosition(), lngFilter.GetPredictedPosition())
-		fmt.Printf("[%f] vs. [%f]\n", data.latLng, point)
+		//fmt.Printf("[%f] vs. [%f]\n", data.latLng, point)
 		output = append(output, GPSMeasurement{
 			latLng:             point,
 			altitudeMeters:     data.altitudeMeters,
