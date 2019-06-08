@@ -100,7 +100,7 @@ func PrettyPrintLaps(laps []Lap) {
 func getLapDuration(v Lap) time.Duration {
 	duration, err := time.ParseDuration(fmt.Sprintf("%fs", v.timeSeconds))
 	if err != nil {
-		log.Fatalf("encountered an error while parsing laptime %d, error was: %v", v.timeSeconds, err)
+		log.Fatalf("encountered an error while parsing laptime %f, error was: %v", v.timeSeconds, err)
 	}
 	return duration
 }
