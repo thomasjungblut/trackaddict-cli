@@ -5,20 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func ReadData(inputFile string) (*TrackData, error) {
-	trackInfo, measures, err := readTrackMeasures(inputFile)
+func ReadData(config DataConfig) (*TrackData, error) {
+	trackInfo, measures, err := readTrackMeasures(config.InputFile)
 	if err != nil {
 		return nil, err
 	}
 
-	laps := extractLaps(measures, trackInfo)
-	return &TrackData{TrackInformation: trackInfo, GPSMeasurement: measures, Laps: laps}, nil
+	filteredMeasures := PredictKalmanFilteredMeasures(measures)
+	data := &TrackData{TrackInformation: trackInfo, GPSMeasurement: measures, FilteredGPSMeasurement: filteredMeasures}
+	laps := extractLaps(config, data)
+	data.Laps = laps
+	return data, nil
 }
 
 func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, error) {
@@ -45,7 +49,7 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 				}
 
 				trackInfo.startLatLng = []float64{mustParseFloat64(matches[0][1]), mustParseFloat64(matches[0][2])}
-				fmt.Printf("Found Start/End GPS coordinate: [%f/%f]\n", trackInfo.startLatLng[0], trackInfo.startLatLng[1])
+				// fmt.Printf("Found Start/End GPS coordinate: [%f/%f]\n", trackInfo.startLatLng[0], trackInfo.startLatLng[1])
 			}
 		} else if strings.HasPrefix(line, "\"Time\"") {
 			// skip the header
@@ -64,6 +68,7 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 				headingDegrees:     mustParseFloat64(split[12]),
 				accuracyMeter:      mustParseFloat64(split[13]),
 				accelerationVector: []float64{mustParseFloat64(split[14]), mustParseFloat64(split[15]), mustParseFloat64(split[16])},
+				trackAddictLap:     mustParseInt(split[2]),
 			})
 
 		}
@@ -74,10 +79,45 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 		return nil, nil, err
 	}
 
-	// TODO flag
-	measures = PredictKalmanFilteredMeasures(measures)
-
 	return &trackInfo, measures, nil
+}
+
+func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasurement {
+	init := measurement[0]
+
+	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]), DistToleranceInMeters, 0.3, init.utcTimestamp)
+	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]), DistToleranceInMeters, 0.3, init.utcTimestamp)
+
+	var output []GPSMeasurement
+	for i := 1; i < len(measurement); i++ {
+		data := measurement[i]
+
+		speedMetersPerSecond := data.speedKph / 3.6
+		xVel := speedMetersPerSecond * math.Cos(data.headingDegrees)
+		yVel := speedMetersPerSecond * math.Sin(data.headingDegrees)
+
+		latFilter.Update(latToMeter(data.latLng[0]), xVel, &data.accuracyMeter, 0)
+		lngFilter.Update(lngToMeter(data.latLng[1]), yVel, &data.accuracyMeter, 0)
+
+		latFilter.Predict(data.accelerationVector[0], init.utcTimestamp)
+		lngFilter.Predict(data.accelerationVector[1], init.utcTimestamp)
+
+		point := metersToGeoPoint(latFilter.GetPredictedPosition(), lngFilter.GetPredictedPosition())
+		//fmt.Printf("[%f] vs. [%f]\n", data.latLng, point)
+		output = append(output, GPSMeasurement{
+			latLng:             point,
+			altitudeMeters:     data.altitudeMeters,
+			relativeTime:       data.relativeTime,
+			accelerationVector: data.accelerationVector,
+			speedKph:           data.speedKph,
+			utcTimestamp:       data.utcTimestamp,
+			trackAddictLap:     data.trackAddictLap,
+			accuracyMeter:      data.accuracyMeter,
+			headingDegrees:     data.headingDegrees,
+		})
+	}
+
+	return output
 }
 
 func mustParseFloat64(s string) float64 {
@@ -86,4 +126,12 @@ func mustParseFloat64(s string) float64 {
 		log.Fatalf("can't parse float: %s", s)
 	}
 	return f
+}
+
+func mustParseInt(s string) int {
+	i, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		log.Fatalf("can't parse int: %s", s)
+	}
+	return int(i)
 }

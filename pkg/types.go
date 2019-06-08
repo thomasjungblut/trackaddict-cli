@@ -1,5 +1,20 @@
 package pkg
 
+type DataConfig struct {
+	InputFile          string
+	UseSmoothedGPSData bool
+	RecalculateLaps    bool
+}
+
+type PlotConfig struct {
+	DataConfig
+	OutputFile         string
+	ImageWidth         int
+	ImageHeight        int
+	FastestLapOnly     bool
+	PlotLapsSeparately bool
+}
+
 type TrackData struct {
 	Laps                   []Lap
 	TrackInformation       *TrackInformation
@@ -26,4 +41,5 @@ type GPSMeasurement struct {
 	speedKph           float64
 	accuracyMeter      float64
 	headingDegrees     float64
+	trackAddictLap     int
 }
