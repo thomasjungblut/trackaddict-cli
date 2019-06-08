@@ -18,7 +18,7 @@ Make sure your PATH includes the $GOPATH/bin directory so your commands can be e
 
 > export PATH=$PATH:$GOPATH/bin
 
-## Examples
+## Usage
 
 Printing the Laps that TrackAddict has created can be done via:
 
@@ -45,7 +45,8 @@ As you can see here, some laps seem to get mixed together by noisy GPS measures,
 
 ![raw gps measures](docs/raw_output.png)
 
-That's pretty noisy! Let's smooth the data bit. We're using the accelerometer data to improve the GPS using a Kalman Filter by running:
+That's pretty noisy! Let's try to smooth the GPS data a bit. We're using the accelerometer data to improve the GPS signal by using a Kalman Filter.
+You can have all of that power with just one single flag:
 
 > trackaddict-cli plot -i example/STC_log.csv -o docs/filtered_output.png --smooth
 
@@ -57,7 +58,7 @@ The same works for the lap times. Let's smooth the GPS data again and recalculat
 
 > trackaddict-cli laps -i example/STC_log.csv --smooth --fix-laps
 
-We can plot laps individually:
+We can also plot laps individually:
 
 > trackaddict-cli plot -i example/STC_log.csv -o docs/lap_plot --smooth --fix-laps --plot-each-lap
 
@@ -65,6 +66,6 @@ smooth and fix flags are optional, so you can also plot the track addict data di
 
 > trackaddict-cli plot -i example/STC_log.csv -o docs/lap_plot --plot-each-lap
 
-That gives us the ability to just take a look at our inlap at the end:
+That gives us the ability to just take a look at our inlap at the end for example:
 
-![smoothed gps measures](docs/lap_plot_inlap.png)
+![smoothed gps measure inlap](docs/lap_plot_inlap.png)
