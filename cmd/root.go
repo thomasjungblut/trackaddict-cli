@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/thomasjungblut/trackaddict-cli/pkg"
+	"log"
 	"os"
 )
 
@@ -13,6 +14,9 @@ var (
 	PlotImageWidth     int
 	PlotImageHeight    int
 	PlotFastestLapOnly bool
+	PlotLapsSeparately bool
+	FilteringEnabled   bool
+	RecalculateLaps    bool
 )
 
 var rootCmd = &cobra.Command{
@@ -20,16 +24,17 @@ var rootCmd = &cobra.Command{
 	Short: "This commandline tool will try to fix your laps from noisy GPS and print the lap times.",
 }
 
-var createCmd = &cobra.Command{
+var lapCmd = &cobra.Command{
 	Use:   "laps",
 	Short: "Prints your lap times",
 	Run: func(cmd *cobra.Command, args []string) {
-		_, _, laps, err := pkg.ReadData(InputFile)
+		dataConfig := pkg.DataConfig{InputFile: InputFile, UseSmoothedGPSData: FilteringEnabled, RecalculateLaps: RecalculateLaps}
+		data, err := pkg.ReadData(dataConfig)
 		if err != nil {
-			fmt.Printf("%s", err)
-			os.Exit(1)
+			log.Fatalf("encountered an error: %v", err)
 		}
-		pkg.PrettyPrintLaps(laps)
+		
+		pkg.PrettyPrintLaps(data.Laps)
 	},
 }
 
@@ -37,16 +42,24 @@ var plotCmd = &cobra.Command{
 	Use:   "plot",
 	Short: "Plots a small map of your GPS coordinates",
 	Run: func(cmd *cobra.Command, args []string) {
-		_, measures, laps, err := pkg.ReadData(InputFile)
+		dataConfig := pkg.DataConfig{InputFile: InputFile, UseSmoothedGPSData: FilteringEnabled, RecalculateLaps: RecalculateLaps}
+		data, err := pkg.ReadData(dataConfig)
 		if err != nil {
-			fmt.Printf("%s", err)
-			os.Exit(1)
+			log.Fatalf("encountered an error: %v", err)
 		}
 
-		err = pkg.Plot(measures, laps, OutputFile, PlotImageWidth, PlotImageHeight, PlotFastestLapOnly)
+		config := pkg.PlotConfig{
+			DataConfig:         dataConfig,
+			OutputFile:         OutputFile,
+			ImageWidth:         PlotImageWidth,
+			ImageHeight:        PlotImageHeight,
+			PlotLapsSeparately: PlotLapsSeparately,
+			FastestLapOnly:     PlotFastestLapOnly,
+		}
+
+		err = pkg.Plot(data, config)
 		if err != nil {
-			fmt.Printf("%s", err)
-			os.Exit(1)
+			log.Fatalf("encountered an error: %v", err)
 		}
 	},
 }
@@ -60,19 +73,24 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
-	_ = createCmd.MarkFlagRequired("inputFile")
+	lapCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
+	_ = lapCmd.MarkFlagRequired("inputFile")
+	lapCmd.Flags().BoolVarP(&RecalculateLaps, "fix-laps", "", false, "If set, it will heuristically recalculate the laps")
+	lapCmd.Flags().BoolVarP(&FilteringEnabled, "smooth", "", false, "If set, it will try to smooth the GPS data with accelerometer information")
 
 	plotCmd.Flags().StringVarP(&InputFile, "inputFile", "i", "", "Input File (required)")
 	_ = plotCmd.MarkFlagRequired("inputFile")
-	plotCmd.Flags().StringVarP(&OutputFile, "outputFile", "o", "", "Output File (with .png)")
+	plotCmd.Flags().StringVarP(&OutputFile, "outputFile", "o", "", "Output File (png)")
 	_ = plotCmd.MarkFlagRequired("outputFile")
 
-	plotCmd.Flags().IntVarP(&PlotImageWidth, "width", "", 2000, "width of the output image, 2000px default")
-	plotCmd.Flags().IntVarP(&PlotImageHeight, "height", "", 2000, "height of the output image, 2000px default")
-	plotCmd.Flags().BoolVarP(&PlotFastestLapOnly, "fastest-lap-only", "", false, "if set, it plots only the fastest lap")
+	plotCmd.Flags().IntVarP(&PlotImageWidth, "width", "", 2000, "Width of the output image, 2000px default")
+	plotCmd.Flags().IntVarP(&PlotImageHeight, "height", "", 2000, "Height of the output image, 2000px default")
+	plotCmd.Flags().BoolVarP(&PlotFastestLapOnly, "fastest-lap-only", "", false, "If set, it plots only the fastest lap")
+	plotCmd.Flags().BoolVarP(&PlotLapsSeparately, "plot-each-lap", "", false, "If set, it will plot each lap in its own file by appending the lap number to the given outputfile name.")
+	plotCmd.Flags().BoolVarP(&RecalculateLaps, "fix-laps", "", false, "If set, it will heuristically recalculate the laps")
+	plotCmd.Flags().BoolVarP(&FilteringEnabled, "smooth", "", false, "If set, it will try to smooth the GPS location by kalman filtering using accelerometer data")
 
-	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(lapCmd)
 	rootCmd.AddCommand(plotCmd)
 	rootCmd.AddCommand(versionCmd)
 }
