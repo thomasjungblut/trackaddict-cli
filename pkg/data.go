@@ -85,8 +85,8 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasurement {
 	init := measurement[0]
 
-	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]), DistToleranceInMeters, 0.3, init.utcTimestamp)
-	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]), DistToleranceInMeters, 0.3, init.utcTimestamp)
+	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]), 10, 0.5, init.utcTimestamp)
+	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]), 10, 0.5, init.utcTimestamp)
 
 	var output []GPSMeasurement
 	for i := 1; i < len(measurement); i++ {
