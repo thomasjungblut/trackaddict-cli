@@ -57,7 +57,7 @@ func calculateLapsWithThresholding(measures []GPSMeasurement, trackInfo *TrackIn
 	for i := 0; i < len(measures); i++ {
 		measure := measures[i]
 		dist := haversineDistance(trackInfo.startLatLng, measure.latLng)
-		// fmt.Printf("%f\t%f\n", measure.relativeTime, dist)
+		//  fmt.Printf("%f\t%f\n", measure.relativeTime, dist)
 		// simple thresholding algorithm with some cooldown period of measurements
 		if dist < DistToleranceInMeters && (i-currentLap.measureStartIndex) > NumLapCooldownMeasures {
 			currentLap.measureEndIndexExclusive = i + 1

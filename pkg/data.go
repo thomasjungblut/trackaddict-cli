@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+type GPSMeasureGetFunc func(measurement GPSMeasurement) float64
+
 func ReadData(config DataConfig) (*TrackData, error) {
 	trackInfo, measures, err := readTrackMeasures(config.InputFile)
 	if err != nil {
@@ -85,8 +87,28 @@ func readTrackMeasures(inputFile string) (*TrackInformation, []GPSMeasurement, e
 func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasurement {
 	init := measurement[0]
 
-	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]), 10, 0.5, init.utcTimestamp)
-	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]), 10, 0.5, init.utcTimestamp)
+	gpsErrorStdDevMeters := stddev(measurement,
+		func(measurement GPSMeasurement) float64 {
+			return measurement.accuracyMeter
+		})
+
+	xAccelerationStdDev := stddev(measurement,
+		func(measurement GPSMeasurement) float64 {
+			return measurement.accelerationVector[0]
+		})
+
+	yAccelerationStdDev := stddev(measurement,
+		func(measurement GPSMeasurement) float64 {
+			return measurement.accelerationVector[1]
+		})
+
+	// fmt.Printf("GPS Error stddev [%f], X Accelerator stddev [%f], y Accelerator stddev [%f] \n",
+	//	   gpsErrorStdDevMeters, xAccelerationStdDev, yAccelerationStdDev)
+
+	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]),
+		gpsErrorStdDevMeters, xAccelerationStdDev, init.utcTimestamp)
+	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]),
+		gpsErrorStdDevMeters, yAccelerationStdDev, init.utcTimestamp)
 
 	var output []GPSMeasurement
 	for i := 1; i < len(measurement); i++ {
@@ -118,6 +140,24 @@ func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasuremen
 	}
 
 	return output
+}
+
+func stddev(measurement []GPSMeasurement, fnc GPSMeasureGetFunc) float64 {
+	sum := 0.0
+	for _, m := range measurement {
+		sum += fnc(m)
+	}
+
+	mean := sum / float64(len(measurement))
+
+	sum = 0.0
+	for _, m := range measurement {
+		diff := mean - fnc(m)
+		sum += diff * diff
+	}
+
+	mean = sum / float64(len(measurement))
+	return math.Sqrt(mean)
 }
 
 func mustParseFloat64(s string) float64 {
