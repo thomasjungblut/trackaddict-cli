@@ -30,19 +30,24 @@ func Plot(data *TrackData, config PlotConfig) error {
 		measures = data.FilteredGPSMeasurement
 	}
 
-	outputFile := config.OutputFile
-	ctx := sm.NewContext()
-	ctx.SetSize(config.ImageWidth, config.ImageHeight)
+	gpsErrorStdDevMeters := stddev(measures,
+		func(measurement GPSMeasurement) float64 {
+			return measurement.accuracyMeter
+		})
 
+	outputFile := config.OutputFile
+	pathColor := Black
+	ctx := newPlotContext(config, "")
 	for lapNum := 0; lapNum < len(laps); lapNum++ {
-		addStartEndZone(ctx, data)
-		// for different laps, we use random colors, for isolated laps we choose black
-		pathColor := color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: 0xff}
 		if config.PlotLapsSeparately {
-			pathColor = Black
+			ctx = newPlotContext(config, fmt.Sprintf("Lap Time: %s", getLapDuration(laps[lapNum]).String()))
+		} else {
+			pathColor = color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: 0xff}
 		}
 
-		addLapPathToContext(laps, lapNum, measures, ctx, pathColor)
+		addStartEndZone(ctx, data.TrackInformation.startLatLng, gpsErrorStdDevMeters)
+		addLapPathToContext(laps[lapNum], measures, ctx, pathColor)
+
 		if config.PlotLapsSeparately {
 			outFileLap := fmt.Sprintf("%s_lap_%d.png", outputFile, lapNum)
 			if lapNum == 0 {
@@ -54,8 +59,6 @@ func Plot(data *TrackData, config PlotConfig) error {
 			if err != nil {
 				return err
 			}
-			ctx = sm.NewContext()
-			ctx.SetSize(config.ImageWidth, config.ImageHeight)
 		}
 	}
 
@@ -86,8 +89,8 @@ func renderAndSave(ctx *sm.Context, outputFile string) error {
 	return nil
 }
 
-func addLapPathToContext(laps []Lap, lapNum int, measures []GPSMeasurement, ctx *sm.Context, color color.RGBA) {
-	lapSet := MeasuresForLap(laps[lapNum], measures)
+func addLapPathToContext(lap Lap, measures []GPSMeasurement, ctx *sm.Context, color color.RGBA) {
+	lapSet := MeasuresForLap(lap, measures)
 	positions := make([]s2.LatLng, len(lapSet))
 	for i := 0; i < len(lapSet); i++ {
 		// fmt.Printf("[%f, %f]\n", lapSet[i].latLng[0], lapSet[i].latLng[1])
@@ -97,10 +100,10 @@ func addLapPathToContext(laps []Lap, lapNum int, measures []GPSMeasurement, ctx 
 	ctx.AddPath(lapPath)
 }
 
-func addStartEndZone(ctx *sm.Context, data *TrackData) {
+func addStartEndZone(ctx *sm.Context, startLatLng []float64, radius float64) {
 	ctx.AddCircle(&sm.Circle{
-		Position: s2LatLngFromSlice(data.TrackInformation.startLatLng),
-		Radius:   DistToleranceInMeters,
+		Position: s2LatLngFromSlice(startLatLng),
+		Radius:   radius,
 		Color:    Red,
 		Fill:     Transparent,
 		Weight:   2})
@@ -121,4 +124,13 @@ func filterFastestLap(laps []Lap) []Lap {
 
 func s2LatLngFromSlice(slice []float64) s2.LatLng {
 	return s2.LatLngFromDegrees(slice[0], slice[1])
+}
+
+func newPlotContext(config PlotConfig, attributionHackString string) *sm.Context {
+	ctx := sm.NewContext()
+	ctx.SetSize(config.ImageWidth, config.ImageHeight)
+	provider := sm.NewTileProviderOpenStreetMaps()
+	provider.Attribution = fmt.Sprintf("%s | %s", provider.Attribution, attributionHackString)
+	ctx.SetTileProvider(provider)
+	return ctx
 }

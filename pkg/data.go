@@ -24,6 +24,7 @@ func ReadData(config DataConfig) (*TrackData, error) {
 	data := &TrackData{TrackInformation: trackInfo, GPSMeasurement: measures, FilteredGPSMeasurement: filteredMeasures}
 	laps := extractLaps(config, data)
 	data.Laps = laps
+
 	return data, nil
 }
 
@@ -140,24 +141,6 @@ func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasuremen
 	}
 
 	return output
-}
-
-func stddev(measurement []GPSMeasurement, fnc GPSMeasureGetFunc) float64 {
-	sum := 0.0
-	for _, m := range measurement {
-		sum += fnc(m)
-	}
-
-	mean := sum / float64(len(measurement))
-
-	sum = 0.0
-	for _, m := range measurement {
-		diff := mean - fnc(m)
-		sum += diff * diff
-	}
-
-	mean = sum / float64(len(measurement))
-	return math.Sqrt(mean)
 }
 
 func mustParseFloat64(s string) float64 {

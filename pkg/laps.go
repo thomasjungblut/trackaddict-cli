@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-const DistToleranceInMeters = 30
 const NumLapCooldownMeasures = 1000
 
 func MeasuresForLap(lap Lap, measures []GPSMeasurement) []GPSMeasurement {
@@ -52,6 +51,11 @@ func extractLaps(config DataConfig, data *TrackData) []Lap {
 }
 
 func calculateLapsWithThresholding(measures []GPSMeasurement, trackInfo *TrackInformation) []Lap {
+	gpsErrorStdDevMeters := stddev(measures,
+		func(measurement GPSMeasurement) float64 {
+			return measurement.accuracyMeter
+		}) * 2.0
+
 	var laps []Lap
 	currentLap := Lap{measureStartIndex: 0}
 	for i := 0; i < len(measures); i++ {
@@ -59,7 +63,7 @@ func calculateLapsWithThresholding(measures []GPSMeasurement, trackInfo *TrackIn
 		dist := haversineDistance(trackInfo.startLatLng, measure.latLng)
 		//  fmt.Printf("%f\t%f\n", measure.relativeTime, dist)
 		// simple thresholding algorithm with some cooldown period of measurements
-		if dist < DistToleranceInMeters && (i-currentLap.measureStartIndex) > NumLapCooldownMeasures {
+		if dist < gpsErrorStdDevMeters && (i-currentLap.measureStartIndex) > NumLapCooldownMeasures {
 			currentLap.measureEndIndexExclusive = i + 1
 			currentLap.timeSeconds = measure.relativeTime - measures[currentLap.measureStartIndex].relativeTime
 			laps = append(laps, currentLap)

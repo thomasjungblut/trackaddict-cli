@@ -29,7 +29,8 @@ type Lap struct {
 }
 
 type TrackInformation struct {
-	startLatLng []float64
+	startLatLng       []float64
+	gpsAccuracyStdDev float64
 }
 
 type GPSMeasurement struct {
