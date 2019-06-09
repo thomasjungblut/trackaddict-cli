@@ -165,7 +165,6 @@ func NewKalmanFilterFusedPositionAccelerometer(initialPosition float64,
 
 	R := basicMatrix.NewMatrix(2, 2)
 	R.Put(0, 0, float64(positionStandardDeviation*positionStandardDeviation))
-	// TODO might need to play with this value
 	R.Put(1, 1, float64(positionStandardDeviation*positionStandardDeviation))
 	B := basicMatrix.NewMatrix(2, 1)
 	A := basicMatrix.NewMatrix(2, 2)

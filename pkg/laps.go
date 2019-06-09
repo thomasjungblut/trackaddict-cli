@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const DistToleranceInMeters = 10
+const DistToleranceInMeters = 30
 const NumLapCooldownMeasures = 1000
 
 func MeasuresForLap(lap Lap, measures []GPSMeasurement) []GPSMeasurement {
@@ -81,11 +81,11 @@ func PrettyPrintLaps(laps []Lap) {
 	for i, v := range laps {
 		duration := getLapDuration(v)
 
-		lapFormat := fmt.Sprintf("%d", i+1)
+		lapFormat := fmt.Sprintf("%d", i)
 		if i == 0 {
-			lapFormat = fmt.Sprintf("%d (Outlap)", i+1)
+			lapFormat = fmt.Sprintf("Outlap")
 		} else if i == len(laps)-1 {
-			lapFormat = fmt.Sprintf("%d (Inlap)", i+1)
+			lapFormat = fmt.Sprintf("Inlap")
 		}
 
 		table.Append([]string{

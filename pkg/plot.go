@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+var (
+	Red         = color.RGBA{R: uint8(255), G: uint8(0), B: uint8(0), A: 0xff}
+	Black       = color.RGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: 0xff}
+	Transparent = color.RGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: 0}
+)
+
 func Plot(data *TrackData, config PlotConfig) error {
 	fmt.Printf("Plotting your map in [Width/Height] [%d, %d]\n", config.ImageWidth, config.ImageHeight)
 	laps := data.Laps
@@ -29,7 +35,14 @@ func Plot(data *TrackData, config PlotConfig) error {
 	ctx.SetSize(config.ImageWidth, config.ImageHeight)
 
 	for lapNum := 0; lapNum < len(laps); lapNum++ {
-		addLapPathToContext(laps, lapNum, measures, ctx)
+		addStartEndZone(ctx, data)
+		// for different laps, we use random colors, for isolated laps we choose black
+		pathColor := color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: 0xff}
+		if config.PlotLapsSeparately {
+			pathColor = Black
+		}
+
+		addLapPathToContext(laps, lapNum, measures, ctx, pathColor)
 		if config.PlotLapsSeparately {
 			outFileLap := fmt.Sprintf("%s_lap_%d.png", outputFile, lapNum)
 			if lapNum == 0 {
@@ -73,15 +86,24 @@ func renderAndSave(ctx *sm.Context, outputFile string) error {
 	return nil
 }
 
-func addLapPathToContext(laps []Lap, lapNum int, measures []GPSMeasurement, ctx *sm.Context) {
+func addLapPathToContext(laps []Lap, lapNum int, measures []GPSMeasurement, ctx *sm.Context, color color.RGBA) {
 	lapSet := MeasuresForLap(laps[lapNum], measures)
 	positions := make([]s2.LatLng, len(lapSet))
 	for i := 0; i < len(lapSet); i++ {
 		// fmt.Printf("[%f, %f]\n", lapSet[i].latLng[0], lapSet[i].latLng[1])
-		positions[i] = s2.LatLngFromDegrees(lapSet[i].latLng[0], lapSet[i].latLng[1])
+		positions[i] = s2LatLngFromSlice(lapSet[i].latLng)
 	}
-	lapPath := sm.NewPath(positions, color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: 0xff}, 2.0)
+	lapPath := sm.NewPath(positions, color, 2.0)
 	ctx.AddPath(lapPath)
+}
+
+func addStartEndZone(ctx *sm.Context, data *TrackData) {
+	ctx.AddCircle(&sm.Circle{
+		Position: s2LatLngFromSlice(data.TrackInformation.startLatLng),
+		Radius:   DistToleranceInMeters,
+		Color:    Red,
+		Fill:     Transparent,
+		Weight:   2})
 }
 
 func filterFastestLap(laps []Lap) []Lap {
@@ -95,4 +117,8 @@ func filterFastestLap(laps []Lap) []Lap {
 	}
 	laps = []Lap{laps[fastestIndex]}
 	return laps
+}
+
+func s2LatLngFromSlice(slice []float64) s2.LatLng {
+	return s2.LatLngFromDegrees(slice[0], slice[1])
 }
