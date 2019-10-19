@@ -97,19 +97,18 @@ func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasuremen
 		func(measurement GPSMeasurement) float64 {
 			return measurement.accelerationVector[0]
 		})
+	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]),
+		gpsErrorStdDevMeters, xAccelerationStdDev, init.utcTimestamp)
 
 	yAccelerationStdDev := stddev(measurement,
 		func(measurement GPSMeasurement) float64 {
 			return measurement.accelerationVector[1]
 		})
+	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]),
+		gpsErrorStdDevMeters, yAccelerationStdDev, init.utcTimestamp)
 
 	// fmt.Printf("GPS Error stddev [%f], X Accelerator stddev [%f], y Accelerator stddev [%f] \n",
 	//	   gpsErrorStdDevMeters, xAccelerationStdDev, yAccelerationStdDev)
-
-	latFilter := NewKalmanFilterFusedPositionAccelerometer(latToMeter(init.latLng[0]),
-		gpsErrorStdDevMeters, xAccelerationStdDev, init.utcTimestamp)
-	lngFilter := NewKalmanFilterFusedPositionAccelerometer(lngToMeter(init.latLng[1]),
-		gpsErrorStdDevMeters, yAccelerationStdDev, init.utcTimestamp)
 
 	var output []GPSMeasurement
 	for i := 1; i < len(measurement); i++ {
@@ -119,11 +118,11 @@ func PredictKalmanFilteredMeasures(measurement []GPSMeasurement) []GPSMeasuremen
 		xVel := speedMetersPerSecond * math.Cos(data.headingDegrees)
 		yVel := speedMetersPerSecond * math.Sin(data.headingDegrees)
 
-		latFilter.Update(latToMeter(data.latLng[0]), xVel, &data.accuracyMeter, 0)
-		lngFilter.Update(lngToMeter(data.latLng[1]), yVel, &data.accuracyMeter, 0)
-
 		latFilter.Predict(data.accelerationVector[0], init.utcTimestamp)
 		lngFilter.Predict(data.accelerationVector[1], init.utcTimestamp)
+
+		latFilter.Update(latToMeter(data.latLng[0]), xVel, &data.accuracyMeter, 0)
+		lngFilter.Update(lngToMeter(data.latLng[1]), yVel, &data.accuracyMeter, 0)
 
 		point := metersToGeoPoint(latFilter.GetPredictedPosition(), lngFilter.GetPredictedPosition())
 		//fmt.Printf("[%f] vs. [%f]\n", data.latLng, point)

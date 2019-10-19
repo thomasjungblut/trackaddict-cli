@@ -97,9 +97,9 @@ func (k *KalmanFilterFusedPositionAccelerometer) Update(position float64, veloci
 
 	if positionError != nil {
 		k.R.Put(0, 0, *positionError**positionError)
-	} else {
-		k.R.Put(1, 1, velocityError*velocityError)
 	}
+
+	k.R.Put(1, 1, velocityError*velocityError)
 
 	y := k.z.Subtract(k.currentState)
 	s := k.P.Add(k.R)
